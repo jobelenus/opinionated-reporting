@@ -35,7 +35,7 @@ class TestOrder(models.Model):
     cancelled = models.BooleanField(default=False)
 ```
 
-You would create an `OrderFact` model that looks like this:
+You would create an `OrderedFact` model that looks like this:
 ```python
 class OrderedFact(BaseFact):
     customer = DimensionForeignKey(CustomerDimension)
