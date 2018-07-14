@@ -24,3 +24,42 @@ that order belongs to (along with any and all of the indentifiable data for a cu
 
 
 ## Example
+If you had an `Order` model that looked roughly like this:
+'''
+class TestOrder(models.Model):
+    customer = models.ForeignKey(TestCustomer)
+    products = models.ManyToManyField(TestProduct, through=TestOrderItem)
+    created_on = models.DateTimeField(auto_now_add=True)
+    ordered_on = models.DateTimeField(auto_now_add=True)
+    total = models.DecimalField(max_digits=10, decimal_places=2)
+    cancelled = models.BooleanField(default=False)
+'''
+
+You would create an `OrderFact` model that looks like this:
+'''
+class OrderedFact(BaseFact):
+    customer = DimensionForeignKey(CustomerDimension)
+    created_on = DimensionForeignKey(DateDimension, related_name="ordered_created_on")
+    hour_reated_on = DimensionForeignKey(HourDimension, alias='created_on', related_name="ordered_hour_created_on")
+    ordered_on = DimensionForeignKey(DateDimension, related_name="ordered_ordered_on")
+    hour_ordered_on = DimensionForeignKey(HourDimension, alias='ordered_on', related_name="ordered_hour_ordered_on")
+
+    @classmethod
+    def delete_when(cls, instance):
+        return instance.cancelled
+
+    class ReportingMeta:
+        business_model = 'opinionated_reporting.tests.TestOrder'
+        unique_identifier = 'id'
+        fields = ('customer', 'created_on', 'hour_created_on', 'hour_ordered_on', 'ordered_on')
+        header_description = ['ID', 'Created Date', 'Created Time', 'Customer', 'Ordered Date', 'Ordered Time']
+        row_description = lambda row: [
+            row._unique_identifier,
+            row.created_on.date,
+            row.hour_created_on.time,
+            row.customer.name,
+            row.ordered_on.date,
+            row.hour_ordered_on.time,
+        ]
+        total = lambda filter_instance: filter_instance.qs.aggregate(total_count=models.Count('id'))
+'''
