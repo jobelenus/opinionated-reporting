@@ -25,7 +25,7 @@ that order belongs to (along with any and all of the indentifiable data for a cu
 
 ## Example
 If you had an `Order` model that looked roughly like this:
-'''
+```python
 class TestOrder(models.Model):
     customer = models.ForeignKey(TestCustomer)
     products = models.ManyToManyField(TestProduct, through=TestOrderItem)
@@ -33,10 +33,10 @@ class TestOrder(models.Model):
     ordered_on = models.DateTimeField(auto_now_add=True)
     total = models.DecimalField(max_digits=10, decimal_places=2)
     cancelled = models.BooleanField(default=False)
-'''
+```
 
 You would create an `OrderFact` model that looks like this:
-'''
+```python
 class OrderedFact(BaseFact):
     customer = DimensionForeignKey(CustomerDimension)
     created_on = DimensionForeignKey(DateDimension, related_name="ordered_created_on")
@@ -62,4 +62,4 @@ class OrderedFact(BaseFact):
             row.hour_ordered_on.time,
         ]
         total = lambda filter_instance: filter_instance.qs.aggregate(total_count=models.Count('id'))
-'''
+```
