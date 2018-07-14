@@ -40,7 +40,7 @@ You would create an `OrderedFact` model that looks like this:
 class OrderedFact(BaseFact):
     customer = DimensionForeignKey(CustomerDimension)
     created_on = DimensionForeignKey(DateDimension, related_name="ordered_created_on")
-    hour_reated_on = DimensionForeignKey(HourDimension, alias='created_on', related_name="ordered_hour_created_on")
+    hour_created_on = DimensionForeignKey(HourDimension, alias='created_on', related_name="ordered_hour_created_on")
     ordered_on = DimensionForeignKey(DateDimension, related_name="ordered_ordered_on")
     hour_ordered_on = DimensionForeignKey(HourDimension, alias='ordered_on', related_name="ordered_hour_ordered_on")
 
