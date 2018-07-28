@@ -71,6 +71,11 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
         fact.save()
 
     @classmethod
+    def mark_dirty(cls, instance):
+        unique_id = cls.get_reporting_fact_id(instance)
+        cls.reporting_meta.model._default_manager.filter(_unique_identifier=unique_id).update(_is_dirty=True)
+
+    @classmethod
     def record_update(cls, instance, force=False):
         fact = cls.get_reporting_fact(instance)
         if fact._is_frozen:
@@ -88,9 +93,14 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
 
     @classmethod
     @assert_instance
-    def get_reporting_fact(cls, instance):
+    def get_reporting_fact_id(cls, instance):
         cls.check_instance()
-        unique_id = getattr(instance, cls.reporting_meta.unique_identifier)
+        return getattr(instance, cls.reporting_meta.unique_identifier)
+
+    @classmethod
+    @assert_instance
+    def get_reporting_fact(cls, instance):
+        unique_id = cls.get_reporting_fact_id(instance)
         try:
             return cls.reporting_meta.model._default_manager.get(_unique_identifier=unique_id)
         except cls.reporting_meta.model.DoesNotExist:

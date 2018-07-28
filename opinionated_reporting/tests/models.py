@@ -48,7 +48,7 @@ class OrderedProductFact(BaseFact):
     product = DimensionForeignKey(ProductDimension)
     order_id = IntegerDescriptionField(computed=lambda instance: instance.order.id)
     created_on = DimensionForeignKey(DateDimension, computed=lambda instance: instance.order.created_on, related_name="ordered_created_on")
-    hour_reated_on = DimensionForeignKey(HourDimension, computed=lambda instance: instance.order.created_on, related_name="ordered_hour_created_on")
+    hour_created_on = DimensionForeignKey(HourDimension, computed=lambda instance: instance.order.created_on, related_name="ordered_hour_created_on")
     ordered_on = DimensionForeignKey(DateDimension, computed=lambda instance: instance.order.ordered_on, related_name="ordered_ordered_on")
     hour_ordered_on = DimensionForeignKey(HourDimension, computed=lambda instance: instance.order.ordered_on, related_name="ordered_hour_ordered_on")
 
