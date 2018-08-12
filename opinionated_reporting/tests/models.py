@@ -13,18 +13,21 @@ class TestCustomer(models.Model):
     name = models.CharField(max_length=256)
 
 
-class TestOrderItem(models.Model):
-    quantity = models.PositiveIntegerField(default=1)
-    total = models.DecimalField(max_digits=10, decimal_places=2)
-
-
 class TestOrder(models.Model):
     customer = models.ForeignKey(TestCustomer)
-    products = models.ManyToManyField(TestProduct, through=TestOrderItem)
+    products = models.ManyToManyField(TestProduct, through='TestOrderItem')
     created_on = models.DateTimeField(auto_now_add=True)
-    ordered_on = models.DateTimeField(auto_now_add=True)
+    ordered_on = models.DateTimeField(null=True, blank=True, default=None)
     total = models.DecimalField(max_digits=10, decimal_places=2)
+    tax = models.DecimalField(max_digits=10, decimal_places=2)
     cancelled = models.BooleanField(default=False)
+
+
+class TestOrderItem(models.Model):
+    order = models.ForeignKey(TestOrder, on_delete=models.CASCADE)
+    product = models.ForeignKey(TestProduct, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+    total = models.DecimalField(max_digits=10, decimal_places=2)
 
 
 class CustomerDimension(BaseDimension):
