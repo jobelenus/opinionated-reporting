@@ -10,46 +10,48 @@ class UpdatingModelMeta(models.base.ModelBase):
     def __new__(cls, name, bases, attrs, **kwargs):
         new_class = super().__new__(cls, name, bases, attrs, **kwargs)
 
-        reporting_meta = getattr(new_class, 'ReportingMeta', None)
-        if not reporting_meta:
-            raise Exception('Create a `ReportingMeta` inner class')
-        unique_field_name = getattr(reporting_meta, 'unique_identifier', None)
-        if not unique_field_name:
-            raise Exception('Must set `unique_field_name` to a field on the reporting model that defines uniqueness (usually ID)')
-        reporting_model = getattr(reporting_meta, 'model', None)
-        if not reporting_model:
-            raise Exception('Must set `model` to define the model this is reporting against')
+        test_inst = new_class()  # need an instance to check for abstract
+        if not test_inst._meta.abstract:  # b/c testing new_class.Meta.abstract is always False, per docs
+            reporting_meta = getattr(new_class, 'ReportingMeta', None)
+            if not reporting_meta:
+                raise Exception('Create a `ReportingMeta` inner class on {}'.format(new_class))
+            unique_field_name = getattr(reporting_meta, 'unique_identifier', None)
+            if not unique_field_name:
+                raise Exception('Must set `unique_field_name` to a field on the reporting model that defines uniqueness (usually ID) for {}'.format(new_class))
+            reporting_model = getattr(reporting_meta, 'model', None)
+            if not reporting_model:
+                raise Exception('Must set `model` to define the model {} is reporting against'.format(new_class))
 
-        # add the fields defined in the metaclass
-        for field_name in reporting_model.fields:
-            if not hasattr(new_class, field_name):  # i could already have this if its been manually defined
-                for model_field in reporting_model._meta.fields:
-                    if isinstance(model_field, models.ForeignKey):
-                        continue  # FKs have to be manually linked with DimensionFK classes
-                    else:
-                        add_name = '_unique_identifier' if field_name == unique_field_name else field_name
-                        kwargs = {}
-                        if (isinstance(model_field, models.DateTimeField) or isinstance(model_field, models.DateField) or
-                                isinstance(model_field, models.IntegerField) or isinstance(model_field, models.BigIntegerField) or
-                                isinstance(model_field, models.PositiveIntegerField) or isinstance(model_field, models.FloatField) or
-                                isinstance(model_field, models.PositiveSmallIntegerField) or isinstance(model_field, models.SmallIntegerField) or
-                                isinstance(model_field, models.TextField)):
-                            pass  # no kwargs to handle here
-                        elif isinstance(model_field, models.SlugField):
-                            kwargs.update({
-                                'max_length': model_field.max_length,
-                                'allow_unicode': model_field.allow_unicode
-                            })
-                        elif isinstance(model_field, models.DecimalField):
-                            kwargs.update({
-                                'max_digits': model_field.max_digits,
-                                'decimal_places': model_field.decimal_places
-                            })
-                        elif isinstance(model_field, models.CharField):
-                            kwargs.update({'max_length': model_field.max_length})
-                        else:  # we aren't handling this field type
-                            continue
-                        new_class.add_to_class(add_name, model_field.__class__(**kwargs))
+            # add the fields defined in the metaclass
+            for field_name in reporting_model.fields:
+                if not hasattr(new_class, field_name):  # i could already have this if its been manually defined
+                    for model_field in reporting_model._meta.fields:
+                        if isinstance(model_field, models.ForeignKey):
+                            continue  # FKs have to be manually linked with DimensionFK classes
+                        else:
+                            add_name = '_unique_identifier' if field_name == unique_field_name else field_name
+                            kwargs = {}
+                            if (isinstance(model_field, models.DateTimeField) or isinstance(model_field, models.DateField) or
+                                    isinstance(model_field, models.IntegerField) or isinstance(model_field, models.BigIntegerField) or
+                                    isinstance(model_field, models.PositiveIntegerField) or isinstance(model_field, models.FloatField) or
+                                    isinstance(model_field, models.PositiveSmallIntegerField) or isinstance(model_field, models.SmallIntegerField) or
+                                    isinstance(model_field, models.TextField)):
+                                pass  # no kwargs to handle here
+                            elif isinstance(model_field, models.SlugField):
+                                kwargs.update({
+                                    'max_length': model_field.max_length,
+                                    'allow_unicode': model_field.allow_unicode
+                                })
+                            elif isinstance(model_field, models.DecimalField):
+                                kwargs.update({
+                                    'max_digits': model_field.max_digits,
+                                    'decimal_places': model_field.decimal_places
+                                })
+                            elif isinstance(model_field, models.CharField):
+                                kwargs.update({'max_length': model_field.max_length})
+                            else:  # we aren't handling this field type
+                                continue
+                            new_class.add_to_class(add_name, model_field.__class__(**kwargs))
 
 
 def assert_instance(fn):
@@ -158,7 +160,7 @@ class HandleFieldArgs(object):
         setattr(cls, self.name, DescriptionFieldWrapper(self))
 
 
-class BaseDimension(UpdatingModel, HandleFieldArgs, models.Model):
+class BaseDimension(UpdatingModel, HandleFieldArgs):
     # TODO: always have a "None" record populated
 
     def __init__(self, *args, **kwargs):
@@ -223,7 +225,7 @@ class HourDimension(BaseDimension):
     us_format = models.CharField(max_length=16)
 
 
-class BaseFact(UpdatingModel, models.Model):
+class BaseFact(UpdatingModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
