@@ -1,4 +1,5 @@
 from django.db import models
+from . import fields
 
 
 class UpdatingModelMeta(models.base.ModelBase):
@@ -52,6 +53,7 @@ class UpdatingModelMeta(models.base.ModelBase):
                             else:  # we aren't handling this field type
                                 continue
                             new_class.add_to_class(add_name, model_field.__class__(**kwargs))
+        return new_class
 
 
 def assert_instance(fn):
@@ -119,15 +121,15 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
             return
         for field_name in self.ReportingMeta.fields:
             field = getattr(self, field_name)
-            if isinstance(field, HandleFieldArgs):
+            if isinstance(field, fields.HandleFieldArgs):
                 val = field.value_from_instance(instance)
-                if isinstance(field, DimensionForeignKey):
+                if isinstance(field, fields.DimensionForeignKey):
                     # TODO, determine what to do with TZ regarding dates and times
                     # Basic: store dates and times from tz-aware datetimes in the setting defined local tz
                     # Advanced: ???
                     if isinstance(field.related_model, DateDimension):
                         pass
-                    elif isinstance(field.related_model, TimeDimension):
+                    elif isinstance(field.related_model, fields.TimeDimension):
                         pass
                     else:
                         # TODO: handle "none" dimensions for when FK isn't set
@@ -141,25 +143,6 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
         abstract = True
 
 
-class HandleFieldArgs(object):
-
-    def __init__(self, *args, **kwargs):
-        for kwarg in ['alias', 'computed']:
-            setattr(self, kwarg, kwargs.get(kwarg, None))
-            if kwarg in list(kwargs.keys()):
-                del kwargs[kwarg]
-
-        # computed must be a callable
-        if hasattr(self, 'computed'):
-            if not callable(self.computed):
-                self.computed = None
-        super().__init__(*args, **kwargs)
-
-    def contribute_to_class(self, cls, name, **kwargs):
-        super().contribute_to_class(cls, name, **kwargs)
-        setattr(cls, self.name, DescriptionFieldWrapper(self))
-
-
 class BaseDimension(UpdatingModel):
     # TODO: always have a "None" record populated
 
@@ -167,7 +150,12 @@ class BaseDimension(UpdatingModel):
         abstract = True
 
 
-class DateDimension(BaseDimension):
+class DateDimension(models.Model):
+    """
+    NOTE: DateDimension does not inherit from BaseDimension
+    It doesn't do this because it is not an `UpdatingModel` from
+    a corresponding business model
+    """
     QUARTER_FMT = "Q%i %s"
     MONTH_FMT = "%b %Y"
     DAY_NONE = -1
@@ -216,7 +204,12 @@ class DateDimension(BaseDimension):
         }.get(date.month), date.strftime('%y'))
 
 
-class HourDimension(BaseDimension):
+class HourDimension(models.Model):
+    """
+    NOTE: DateDimension does not inherit from BaseDimension
+    It doesn't do this because it is not an `UpdatingModel` from
+    a corresponding business model
+    """
     time = models.TimeField(unique=True)
     us_format = models.CharField(max_length=16)
 

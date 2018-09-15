@@ -1,8 +1,26 @@
 from django.db import models
-from . import base
 
 
-class BaseDescriptionField(base.HandleFieldArgs):
+class HandleFieldArgs(object):
+
+    def __init__(self, *args, **kwargs):
+        for kwarg in ['alias', 'computed']:
+            setattr(self, kwarg, kwargs.get(kwarg, None))
+            if kwarg in list(kwargs.keys()):
+                del kwargs[kwarg]
+
+        # computed must be a callable
+        if hasattr(self, 'computed'):
+            if not callable(self.computed):
+                self.computed = None
+        super().__init__(*args, **kwargs)
+
+    def contribute_to_class(self, cls, name, **kwargs):
+        super().contribute_to_class(cls, name, **kwargs)
+        setattr(cls, self.name, DescriptionFieldWrapper(self))
+
+
+class BaseDescriptionField(HandleFieldArgs):
     pass
 
 
@@ -57,7 +75,7 @@ class DescriptionFieldOperations(object):
         return val
 
 
-class DimensionForeignKey(base.HandleFieldArgs, models.ForeignKey):
+class DimensionForeignKey(HandleFieldArgs, models.ForeignKey):
     """
     Has to check alias/computed during an update
     """
