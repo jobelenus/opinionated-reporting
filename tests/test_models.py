@@ -23,6 +23,7 @@ class TestModels(TestCase):
         })
         models.TestOrderItem.objects.create(**{
             'order': self.order,
+            'product': self.product,
             'quantity': QTY,
             'total': PRICE * QTY
         })

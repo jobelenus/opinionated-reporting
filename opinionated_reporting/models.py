@@ -67,7 +67,7 @@ class UpdatingModelMeta(models.base.ModelBase):
 def assert_instance(fn):
     # actually, cls is a class or instance
     def wrapped(cls, instance):
-        assert isinstance(instance, cls.ReportingMeta.model), "{} is not a {}".format(instance, cls.ReportingMeta.model)
+        assert isinstance(instance, cls.ReportingMeta.business_model), "{} is not a {}".format(instance, cls.ReportingMeta.business_model)
     return wrapped
 
 
