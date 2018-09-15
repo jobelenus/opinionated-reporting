@@ -57,7 +57,7 @@ class UpdatingModelMeta(models.base.ModelBase):
 def assert_instance(fn):
     # actually, cls is a class or instance
     def wrapped(cls, instance):
-        assert isinstance(instance, cls.reporting_meta.model), "{} is not a {}".format(instance, cls.reporting_meta.model)
+        assert isinstance(instance, cls.ReportingMeta.model), "{} is not a {}".format(instance, cls.ReportingMeta.model)
     return wrapped
 
 
@@ -75,7 +75,7 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
     @classmethod
     def mark_dirty(cls, instance):
         unique_id = cls.get_reporting_fact_id(instance)
-        cls.reporting_meta.model._default_manager.filter(_unique_identifier=unique_id).update(_is_dirty=True)
+        cls.ReportingMeta.model._default_manager.filter(_unique_identifier=unique_id).update(_is_dirty=True)
 
     @classmethod
     def record_update(cls, instance, force=False):
@@ -97,16 +97,16 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
     @assert_instance
     def get_reporting_fact_id(cls, instance):
         cls.check_instance()
-        return getattr(instance, cls.reporting_meta.unique_identifier)
+        return getattr(instance, cls.ReportingMeta.unique_identifier)
 
     @classmethod
     @assert_instance
     def get_reporting_fact(cls, instance):
         unique_id = cls.get_reporting_fact_id(instance)
         try:
-            return cls.reporting_meta.model._default_manager.get(_unique_identifier=unique_id)
-        except cls.reporting_meta.model.DoesNotExist:
-            return cls.reporting_meta.model(_is_dirty=True, _unique_identifier=unique_id)
+            return cls.ReportingMeta.model._default_manager.get(_unique_identifier=unique_id)
+        except cls.ReportingMeta.model.DoesNotExist:
+            return cls.ReportingMeta.model(_is_dirty=True, _unique_identifier=unique_id)
 
     @classmethod
     def needs_update(cls, instance):
@@ -117,7 +117,7 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
     def _record_update(self, instance):
         if self._is_frozen:
             return
-        for field_name in self.reporting_meta.fields:
+        for field_name in self.ReportingMeta.fields:
             field = getattr(self, field_name)
             if isinstance(field, HandleFieldArgs):
                 val = field.value_from_instance(instance)
@@ -160,12 +160,8 @@ class HandleFieldArgs(object):
         setattr(cls, self.name, DescriptionFieldWrapper(self))
 
 
-class BaseDimension(UpdatingModel, HandleFieldArgs):
+class BaseDimension(UpdatingModel):
     # TODO: always have a "None" record populated
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.reporting_meta = self.ReportingMeta()
 
     class Meta:
         abstract = True
@@ -226,10 +222,6 @@ class HourDimension(BaseDimension):
 
 
 class BaseFact(UpdatingModel):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.reporting_meta = self.ReportingMeta()
 
     @classmethod
     def delete_when(self, instance):
