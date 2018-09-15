@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'opinionated_reporting'
 ]
 
 MIDDLEWARE = [
@@ -36,8 +37,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
-ROOT_URLCONF = 'testapp.urls'
 
 TEMPLATES = [
     {
@@ -54,8 +53,6 @@ TEMPLATES = [
         },
     },
 ]
-
-WSGI_APPLICATION = 'testapp.wsgi.application'
 
 
 # Database
