@@ -1,4 +1,5 @@
 from django.db import models
+from django.apps import apps
 from . import fields
 
 
@@ -19,40 +20,47 @@ class UpdatingModelMeta(models.base.ModelBase):
             unique_field_name = getattr(reporting_meta, 'unique_identifier', None)
             if not unique_field_name:
                 raise Exception('Must set `unique_field_name` to a field on the reporting model that defines uniqueness (usually ID) for {}'.format(new_class))
-            reporting_model = getattr(reporting_meta, 'model', None)
+            reporting_model = getattr(reporting_meta, 'business_model', None)
             if not reporting_model:
-                raise Exception('Must set `model` to define the model {} is reporting against'.format(new_class))
+                raise Exception('Must set `business_model` to define the model {} is reporting against'.format(new_class))
+            elif isinstance(reporting_model, str):
+                # XXX this doesn't work yet, models aren't loaded yet
+                reporting_model = apps.get_model(reporting_model)
+
+            reporting_fields = getattr(reporting_meta, 'fields', [])
+            fields_to_create = filter(None, [field_name for field_name in reporting_fields if not hasattr(new_class, field_name)])
 
             # add the fields defined in the metaclass
-            for field_name in reporting_model.fields:
-                if not hasattr(new_class, field_name):  # i could already have this if its been manually defined
-                    for model_field in reporting_model._meta.fields:
-                        if isinstance(model_field, models.ForeignKey):
-                            continue  # FKs have to be manually linked with DimensionFK classes
-                        else:
-                            add_name = '_unique_identifier' if field_name == unique_field_name else field_name
-                            kwargs = {}
-                            if (isinstance(model_field, models.DateTimeField) or isinstance(model_field, models.DateField) or
-                                    isinstance(model_field, models.IntegerField) or isinstance(model_field, models.BigIntegerField) or
-                                    isinstance(model_field, models.PositiveIntegerField) or isinstance(model_field, models.FloatField) or
-                                    isinstance(model_field, models.PositiveSmallIntegerField) or isinstance(model_field, models.SmallIntegerField) or
-                                    isinstance(model_field, models.TextField)):
-                                pass  # no kwargs to handle here
-                            elif isinstance(model_field, models.SlugField):
-                                kwargs.update({
-                                    'max_length': model_field.max_length,
-                                    'allow_unicode': model_field.allow_unicode
-                                })
-                            elif isinstance(model_field, models.DecimalField):
-                                kwargs.update({
-                                    'max_digits': model_field.max_digits,
-                                    'decimal_places': model_field.decimal_places
-                                })
-                            elif isinstance(model_field, models.CharField):
-                                kwargs.update({'max_length': model_field.max_length})
-                            else:  # we aren't handling this field type
-                                continue
-                            new_class.add_to_class(add_name, model_field.__class__(**kwargs))
+            for model_field in reporting_model._meta.fields:
+                field_name = model_field.name
+                if field_name not in fields_to_create:
+                    continue
+                if isinstance(model_field, models.ForeignKey):
+                    continue  # FKs have to be manually linked with DimensionFK classes
+                else:
+                    add_name = '_unique_identifier' if field_name == unique_field_name else field_name
+                    kwargs = {}
+                    if (isinstance(model_field, models.DateTimeField) or isinstance(model_field, models.DateField) or
+                            isinstance(model_field, models.IntegerField) or isinstance(model_field, models.BigIntegerField) or
+                            isinstance(model_field, models.PositiveIntegerField) or isinstance(model_field, models.FloatField) or
+                            isinstance(model_field, models.PositiveSmallIntegerField) or isinstance(model_field, models.SmallIntegerField) or
+                            isinstance(model_field, models.TextField)):
+                        pass  # no kwargs to handle here
+                    elif isinstance(model_field, models.SlugField):
+                        kwargs.update({
+                            'max_length': model_field.max_length,
+                            'allow_unicode': model_field.allow_unicode
+                        })
+                    elif isinstance(model_field, models.DecimalField):
+                        kwargs.update({
+                            'max_digits': model_field.max_digits,
+                            'decimal_places': model_field.decimal_places
+                        })
+                    elif isinstance(model_field, models.CharField):
+                        kwargs.update({'max_length': model_field.max_length})
+                    else:  # we aren't handling this field type
+                        continue
+                    new_class.add_to_class(add_name, model_field.__class__(**kwargs))
         return new_class
 
 
