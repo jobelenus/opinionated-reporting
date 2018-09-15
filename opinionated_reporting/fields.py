@@ -32,7 +32,7 @@ class DecimalDescriptionField(BaseDescriptionField, models.DecimalField):
     pass
 
 
-class IntegerDescriptionField(BaseDescriptionField, models.CharField):
+class IntegerDescriptionField(BaseDescriptionField, models.IntegerField):
     pass
 
 
