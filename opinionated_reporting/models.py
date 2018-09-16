@@ -33,35 +33,65 @@ class UpdatingModelMeta(models.base.ModelBase):
             # add the fields defined in the metaclass
             for model_field in reporting_model._meta.fields:
                 field_name = model_field.name
-                if field_name not in fields_to_create:
+
+                # add the unique identifer based on the type
+                handler = FieldHandler(model_field)
+                if field_name == unique_field_name:
+                    if not handler.is_valid_field_type:
+                        raise Exception("Invalid field type declared as the unique identifier")
+                    new_class.add_to_class('_unique_identifier', handler.model_field_class(**handler.field_kwargs))
+
+                elif field_name not in fields_to_create:
                     continue
-                if isinstance(model_field, models.ForeignKey):
+                elif isinstance(model_field, models.ForeignKey):
                     continue  # FKs have to be manually linked with DimensionFK classes
                 else:
-                    add_name = '_unique_identifier' if field_name == unique_field_name else field_name
-                    kwargs = {}
-                    if (isinstance(model_field, models.DateTimeField) or isinstance(model_field, models.DateField) or
-                            isinstance(model_field, models.IntegerField) or isinstance(model_field, models.BigIntegerField) or
-                            isinstance(model_field, models.PositiveIntegerField) or isinstance(model_field, models.FloatField) or
-                            isinstance(model_field, models.PositiveSmallIntegerField) or isinstance(model_field, models.SmallIntegerField) or
-                            isinstance(model_field, models.TextField)):
-                        pass  # no kwargs to handle here
-                    elif isinstance(model_field, models.SlugField):
-                        kwargs.update({
-                            'max_length': model_field.max_length,
-                            'allow_unicode': model_field.allow_unicode
-                        })
-                    elif isinstance(model_field, models.DecimalField):
-                        kwargs.update({
-                            'max_digits': model_field.max_digits,
-                            'decimal_places': model_field.decimal_places
-                        })
-                    elif isinstance(model_field, models.CharField):
-                        kwargs.update({'max_length': model_field.max_length})
-                    else:  # we aren't handling this field type
-                        continue
-                    new_class.add_to_class(add_name, model_field.__class__(**kwargs))
+                    if handler.is_valid_field_type:
+                        new_class.add_to_class(field_name, handler.model_field_class(**handler.field_kwargs))
         return new_class
+
+
+class FieldHandler(object):
+
+    def __init__(self, model_field):
+        self.model_field = model_field
+
+    @property
+    def is_valid_field_type(self):
+        if (isinstance(self.model_field, models.DateTimeField) or isinstance(self.model_field, models.DateField) or
+                isinstance(self.model_field, models.IntegerField) or isinstance(self.model_field, models.BigIntegerField) or
+                isinstance(self.model_field, models.PositiveIntegerField) or isinstance(self.model_field, models.FloatField) or
+                isinstance(self.model_field, models.PositiveSmallIntegerField) or isinstance(self.model_field, models.SmallIntegerField) or
+                isinstance(self.model_field, models.TextField) or isinstance(self.model_field, models.AutoField) or
+                isinstance(self.model_field, models.SlugField) or isinstance(self.model_field, models.DecimalField) or
+                isinstance(self.model_field, models.CharField)):
+            return True
+        else:  # we aren't handling this field type
+            return False
+
+    @property
+    def model_field_class(self):
+        """
+        Cannot have two AutoFields on a model, so turn any AutoField into a PositiveIntegerField
+        """
+        return models.PositiveIntegerField if isinstance(self.model_field, models.AutoField) else self.model_field.__class__
+
+    @property
+    def field_kwargs(self):
+        kwargs = {}
+        if isinstance(self.model_field, models.SlugField):
+            kwargs.update({
+                'max_length': self.model_field.max_length,
+                'allow_unicode': self.model_field.allow_unicode
+            })
+        elif isinstance(self.model_field, models.DecimalField):
+            kwargs.update({
+                'max_digits': self.model_field.max_digits,
+                'decimal_places': self.model_field.decimal_places
+            })
+        elif isinstance(self.model_field, models.CharField):
+            kwargs.update({'max_length': self.model_field.max_length})
+        return kwargs
 
 
 def assert_instance(fn):
@@ -113,7 +143,7 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
         unique_id = cls.get_reporting_fact_id(instance)
         try:
             return cls._default_manager.get(_unique_identifier=unique_id)
-        except cls.ReportingMeta.business_model.DoesNotExist:
+        except cls.DoesNotExist:
             return cls(_is_dirty=True, _unique_identifier=unique_id)
 
     @classmethod
