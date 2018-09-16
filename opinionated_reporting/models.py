@@ -1,6 +1,13 @@
+import datetime
 from django.db import models
 from django.apps import apps
+from django.conf import settings
+from django.db import IntegrityError
 from . import fields
+import pytz
+
+
+local_tz = pytz.timezone(settings.TIME_ZONE)
 
 
 class UpdatingModelMeta(models.base.ModelBase):
@@ -98,7 +105,12 @@ def assert_instance(fn):
     # actually, cls is a class or instance
     def wrapped(cls, instance):
         assert isinstance(instance, cls.ReportingMeta.business_model), "{} is not a {}".format(instance, cls.ReportingMeta.business_model)
+        fn(cls, instance)
     return wrapped
+
+
+def datetime_is_naive(d):
+    return True if d.tzinfo is None or d.tzinfo.utcoffset(d) is None else False
 
 
 class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
@@ -155,32 +167,70 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
     def _record_update(self, instance):
         if self._is_frozen:
             return
-        for field_name in self.ReportingMeta.fields:
-            field = getattr(self, field_name)
+        for field in self._meta.fields:
+            field_name = field.name
+            if field_name.startswith('_') or field.primary_key:  # ignore my internal fields
+                continue
             if isinstance(field, fields.HandleFieldArgs):
-                val = field.value_from_instance(instance)
+                val = getattr(instance, field_name)
+                if hasattr(field, 'value_from_instance'):
+                    val = field.value_from_instance(instance)
                 if isinstance(field, fields.DimensionForeignKey):
-                    # TODO, determine what to do with TZ regarding dates and times
-                    # Basic: store dates and times from tz-aware datetimes in the setting defined local tz
-                    # Advanced: ???
-                    if isinstance(field.related_model, DateDimension):
-                        pass
-                    elif isinstance(field.related_model, fields.TimeDimension):
-                        pass
+                    # Store dates and times from tz-aware datetimes in the setting defined local tz
+                    if issubclass(field.related_model, DateDimension):
+                        if isinstance(val, datetime.date) or isinstance(val, datetime.datetime):
+                            if not datetime_is_naive(val):
+                                val = val.astimezone(local_tz)
+                            if hasattr(val, 'date'):
+                                val = val.date()
+                            self.__dict__[field_name] = field.related_model._default_manager.get(date=val)
+                    elif issubclass(field.related_model, HourDimension):
+                        if isinstance(val, datetime.datetime):
+                            if not datetime_is_naive(val):
+                                val = val.astimezone(local_tz)
+                            val = datetime.time(hour=val.hour, minute=0)
+                        elif isinstance(val, datetime.time):
+                            val = datetime.time(hour=val.hour, minute=0)
+                        self.__dict__[field_name] = field.related_model._default_manager.get(time=val)
                     else:
-                        # TODO: handle "none" dimensions for when FK isn't set
-                        self.__dict__[field_name] = field.related_model._default_manager.get(_unique_identifier=val)
+                        # TODO: Update the "None" value to the corresponding None dimension record
+                        if val:
+                            dim_unique_id = getattr(val, field.related_model.ReportingMeta.unique_identifier)
+                            if dim_unique_id:
+                                try:
+                                    self.__dict__[field_name] = field.related_model._default_manager.get(_unique_identifier=dim_unique_id)
+                                except field.related_model.DoesNotExist:
+                                    self.__dict__[field_name] = None
+                            else:
+                                self.__dict__[field_name] = None
+                        else:
+                            self.__dict__[field_name] = None
                 else:
                     self.__dict__[field_name] = val
             else:
-                self.__dict__[field_name] = getattr(instance, field_name)
+                self.__dict__[field_name] = val
+                # TODO: clean up this deep nesting mess
 
     class Meta:
         abstract = True
 
 
 class BaseDimension(UpdatingModel):
-    # TODO: always have a "None" record populated
+
+    @classmethod
+    def init_dimension(cls):
+        # TODO: mgmt command to run init_dimension on all models
+        # don't do anything if you're an abstract model
+        test_instance = cls()
+        if not test_instance._meta.abstract:
+            empty_record = getattr(cls.ReportingMeta, 'empty_label', None)
+            if empty_record:
+                try:
+                    kwargs = {empty_record[0]: empty_record[1], '_unique_identifier': 0}
+                    print(" -INIT- ", cls, kwargs)
+                    cls.objects.create(**kwargs)
+                except IntegrityError:
+                    pass
 
     class Meta:
         abstract = True
@@ -230,9 +280,44 @@ class DateDimension(models.Model):
     week_number = models.IntegerField(default=0)  # 0-53
     week_number_year = models.CharField(default='', max_length=10)  # "%d %d" % (0-53, 2006-2020)
 
-    @staticmethod
-    def create_quarter_format(date):
-        return DateDimension.QUARTER_FMT % ({
+    @classmethod
+    def init_dimension(cls):
+        raise NotImplementedError  # see initilization below
+
+    @classmethod
+    def init_dimension_by_range(cls, start, end):
+        # NOTE: not calling super on purpose here
+        assert isinstance(start, datetime.date), "`start` must be a python date object"
+        assert isinstance(end, datetime.date), "`end` must be a python date object"
+
+        def _date_range():
+            while start <= end:
+                yield start
+                start += datetime.timedelta(days=1)
+
+        for date in _date_range():
+            isocalendar = date.isocalendar()
+            kwargs = {
+                'date': date,
+                'month_format': cls.create_month_format(date),
+                'quarter_format': cls.create_quarter_format(date),
+                'isoformat': date.isoformat(),
+                'day_of_week': date.weekday(),
+                'week_number': isocalendar[1],
+                'week_number_year': '%s %s' % (isocalendar[1], isocalendar[0])
+            }
+            try:
+                cls.objects.create(**kwargs)
+            except IntegrityError:
+                pass
+
+    @classmethod
+    def create_month_format(cls, date):
+        return date.strftime(cls.MONTH_FMT)
+
+    @classmethod
+    def create_quarter_format(cls, date):
+        return cls.QUARTER_FMT % ({
             1: 1, 2: 1, 3: 1,
             4: 2, 5: 2, 6: 2,
             7: 3, 8: 3, 9: 3,
@@ -248,6 +333,16 @@ class HourDimension(models.Model):
     """
     time = models.TimeField(unique=True)
     us_format = models.CharField(max_length=16)
+
+    @classmethod
+    def init_dimension(cls):
+        # NOTE: not calling super on purpose here
+        for i in range(0, 24):
+            t = datetime.time(hour=i, minute=0)
+            try:
+                cls.objects.create(time=t, us_format=t.strftime("%I:%M%p"))
+            except IntegrityError:
+                pass
 
 
 class BaseFact(UpdatingModel):

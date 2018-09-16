@@ -48,6 +48,7 @@ class CustomerDimension(BaseDimension):
         business_model = TestCustomer
         unique_identifier = 'id'
         fields = ('name', 'email')
+        empty_label = ('name', 'None')
 
     class Meta:
         app_label = 'tests'
@@ -59,6 +60,7 @@ class ProductDimension(BaseDimension):
         business_model = TestProduct
         unique_identifier = 'id'
         fields = ('name', 'price')
+        empty_label = ('name', 'None')
 
     class Meta:
         app_label = 'tests'

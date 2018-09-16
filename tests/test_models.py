@@ -1,4 +1,6 @@
+import datetime
 from django.test import TestCase
+from opinionated_reporting import models as opr_models
 from . import models
 
 PRICE = 5.00
@@ -27,6 +29,10 @@ class TestModels(TestCase):
             'quantity': QTY,
             'total': PRICE * QTY
         })
+        models.CustomerDimension.init_dimension()
+        models.ProductDimension.init_dimension()
+        opr_models.HourDimension.init_dimension()
+        opr_models.DateDimension.init_dimension_by_range(datetime.date.today() - datetime.timedelta(days=3), datetime.date.today() + datetime.timedelta(days=3))
 
     def tearDown(self):
         self.order.delete()
