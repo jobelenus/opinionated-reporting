@@ -35,23 +35,21 @@ class UpdatingModelMeta(models.base.ModelBase):
                 reporting_model = apps.get_model(reporting_model)
 
             reporting_fields = getattr(reporting_meta, 'fields', [])
-            fields_to_create = filter(None, [field_name for field_name in reporting_fields if not hasattr(new_class, field_name)])
+            fields_to_create = list(filter(None, [field_name for field_name in reporting_fields if not hasattr(new_class, field_name)]))
 
             # add the fields defined in the metaclass
             for model_field in reporting_model._meta.fields:
                 field_name = model_field.name
-
-                # add the unique identifer based on the type
                 handler = FieldHandler(model_field)
-                if field_name == unique_field_name:
+                if isinstance(model_field, models.ForeignKey):
+                    continue  # FKs have to be manually linked with DimensionFK classes
+                # add the unique identifer based on the type
+                elif field_name == unique_field_name:
                     if not handler.is_valid_field_type:
                         raise Exception("Invalid field type declared as the unique identifier")
                     new_class.add_to_class('_unique_identifier', handler.model_field_class(**handler.field_kwargs))
-
                 elif field_name not in fields_to_create:
                     continue
-                elif isinstance(model_field, models.ForeignKey):
-                    continue  # FKs have to be manually linked with DimensionFK classes
                 else:
                     if handler.is_valid_field_type:
                         new_class.add_to_class(field_name, handler.model_field_class(**handler.field_kwargs))
