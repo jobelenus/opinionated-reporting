@@ -130,7 +130,7 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
                     return
 
         if fact._is_dirty or force:
-            fact._record_update()
+            fact._record_update(instance)
             fact.save()
 
     @classmethod
