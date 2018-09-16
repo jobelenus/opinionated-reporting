@@ -72,7 +72,7 @@ def assert_instance(fn):
 
 
 class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
-    # note: there is an implicit `_unique_identifier` field here
+    # note: there is an implicit `_unique_identifier` field here that comes from the metaclass
     _is_dirty = models.BooleanField(default=False)  # updated via signals from the originating model
     _is_frozen = models.BooleanField(default=False)  # will not allow changes or deletions (e.g. archived if underlying data changes)
 
@@ -85,7 +85,7 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
     @classmethod
     def mark_dirty(cls, instance):
         unique_id = cls.get_reporting_fact_id(instance)
-        cls.ReportingMeta.model._default_manager.filter(_unique_identifier=unique_id).update(_is_dirty=True)
+        cls._default_manager.filter(_unique_identifier=unique_id).update(_is_dirty=True)
 
     @classmethod
     def record_update(cls, instance, force=False):
@@ -110,13 +110,12 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
         return getattr(instance, cls.ReportingMeta.unique_identifier)
 
     @classmethod
-    @assert_instance
     def get_reporting_fact(cls, instance):
         unique_id = cls.get_reporting_fact_id(instance)
         try:
-            return cls.ReportingMeta.model._default_manager.get(_unique_identifier=unique_id)
-        except cls.ReportingMeta.model.DoesNotExist:
-            return cls.ReportingMeta.model(_is_dirty=True, _unique_identifier=unique_id)
+            return cls._default_manager.get(_unique_identifier=unique_id)
+        except cls.ReportingMeta.business_model.DoesNotExist:
+            return cls(_is_dirty=True, _unique_identifier=unique_id)
 
     @classmethod
     def needs_update(cls, instance):
