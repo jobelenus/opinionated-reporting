@@ -287,12 +287,12 @@ class DateDimension(models.Model):
         assert isinstance(start, datetime.date), "`start` must be a python date object"
         assert isinstance(end, datetime.date), "`end` must be a python date object"
 
-        def _date_range():
+        def _date_range(start, end):
             while start <= end:
                 yield start
                 start += datetime.timedelta(days=1)
 
-        for date in _date_range():
+        for date in _date_range(start, end):
             isocalendar = date.isocalendar()
             kwargs = {
                 'date': date,

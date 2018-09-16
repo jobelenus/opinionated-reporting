@@ -1,5 +1,6 @@
 import datetime
 from django.test import TestCase
+from django.db import transaction
 from opinionated_reporting import models as opr_models
 from . import models
 
@@ -11,6 +12,14 @@ TAX = 0.50
 class TestModels(TestCase):
 
     def setUp(self):
+        with transaction.atomic():
+            opr_models.HourDimension.init_dimension()
+        with transaction.atomic():
+            opr_models.DateDimension.init_dimension_by_range(datetime.date.today() - datetime.timedelta(days=3), datetime.date.today() + datetime.timedelta(days=3))
+        with transaction.atomic():
+            models.CustomerDimension.init_dimension()
+        with transaction.atomic():
+            models.ProductDimension.init_dimension()
         self.product = models.TestProduct.objects.create(**{
             'name': 'Widget',
             'price': PRICE
@@ -29,10 +38,6 @@ class TestModels(TestCase):
             'quantity': QTY,
             'total': PRICE * QTY
         })
-        models.CustomerDimension.init_dimension()
-        models.ProductDimension.init_dimension()
-        opr_models.HourDimension.init_dimension()
-        opr_models.DateDimension.init_dimension_by_range(datetime.date.today() - datetime.timedelta(days=3), datetime.date.today() + datetime.timedelta(days=3))
 
     def tearDown(self):
         self.order.delete()

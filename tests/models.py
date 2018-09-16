@@ -104,7 +104,7 @@ class OrderedProductFact(BaseFact):
 class OrderedFact(BaseFact):
     customer = DimensionForeignKey(CustomerDimension, on_delete=models.CASCADE)
     created_on = DimensionForeignKey(DateDimension, related_name="ordered_created_on", on_delete=models.CASCADE)
-    hour_reated_on = DimensionForeignKey(HourDimension, alias='created_on', related_name="ordered_hour_created_on", on_delete=models.CASCADE)
+    hour_created_on = DimensionForeignKey(HourDimension, alias='created_on', related_name="ordered_hour_created_on", on_delete=models.CASCADE)
     ordered_on = DimensionForeignKey(DateDimension, related_name="ordered_ordered_on", on_delete=models.CASCADE)
     hour_ordered_on = DimensionForeignKey(HourDimension, alias='ordered_on', related_name="ordered_hour_ordered_on", on_delete=models.CASCADE)
 
