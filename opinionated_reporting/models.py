@@ -225,7 +225,6 @@ class BaseDimension(UpdatingModel):
             if empty_record:
                 try:
                     kwargs = {empty_record[0]: empty_record[1], '_unique_identifier': 0}
-                    print(" -INIT- ", cls, kwargs)
                     cls.objects.create(**kwargs)
                 except IntegrityError:
                     pass
