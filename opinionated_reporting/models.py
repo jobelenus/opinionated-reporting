@@ -106,7 +106,6 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
     @classmethod
     @assert_instance
     def get_reporting_fact_id(cls, instance):
-        cls.check_instance()
         return getattr(instance, cls.ReportingMeta.unique_identifier)
 
     @classmethod
