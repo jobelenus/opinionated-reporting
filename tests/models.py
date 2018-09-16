@@ -70,19 +70,27 @@ class OrderedProductFact(BaseFact):
     customer = DimensionForeignKey(CustomerDimension, on_delete=models.CASCADE)
     product = DimensionForeignKey(ProductDimension, on_delete=models.CASCADE)
     order_id = IntegerDescriptionField(computed=lambda instance: instance.order.id)
-    created_on = DimensionForeignKey(DateDimension, computed=lambda instance: instance.order.created_on, related_name="orderedproduct_created_on", on_delete=models.CASCADE)
-    hour_created_on = DimensionForeignKey(HourDimension, computed=lambda instance: instance.order.created_on, related_name="orderedproduct_hour_created_on", on_delete=models.CASCADE)
-    ordered_on = DimensionForeignKey(DateDimension, computed=lambda instance: instance.order.ordered_on, related_name="orderedproduct_ordered_on", on_delete=models.CASCADE)
-    hour_ordered_on = DimensionForeignKey(HourDimension, computed=lambda instance: instance.order.ordered_on, related_name="orderedproduct_hour_ordered_on", on_delete=models.CASCADE)
+    created_on = DimensionForeignKey(DateDimension, related_name="orderedproduct_created_on", on_delete=models.CASCADE)
+    hour_created_on = DimensionForeignKey(HourDimension, related_name="orderedproduct_hour_created_on", on_delete=models.CASCADE)
+    ordered_on = DimensionForeignKey(DateDimension, related_name="orderedproduct_ordered_on", on_delete=models.CASCADE)
+    hour_ordered_on = DimensionForeignKey(HourDimension, related_name="orderedproduct_hour_ordered_on", on_delete=models.CASCADE)
 
     @classmethod
     def delete_when(cls, instance):
+        if not instance.ordered_on:
+            return False
         return instance.order.cancelled
 
     class ReportingMeta:
         business_model = TestOrderItem
         unique_identifier = 'id'
         fields = ('product', 'qty', 'total', 'order_id', 'customer', 'created_on', 'hour_created_on', 'hour_ordered_on', 'ordered_on')
+        dimension_aliases = {
+            'created_on': lambda instance: instance.order.created_on,
+            'ordered_on': lambda instance: instance.order.ordered_on,
+            'hour_created_on': lambda instance: instance.order.created_on,
+            'hour_ordered_on': lambda instance: instance.order.ordered_on
+        }
         header_description = ['ID', 'Product', 'Qty', 'Total', 'Order ID''Created Date', 'Created Time', 'Customer', 'Ordered Date', 'Ordered Time']
         row_description = lambda row: [
             row._unique_identifier,
@@ -104,18 +112,24 @@ class OrderedProductFact(BaseFact):
 class OrderedFact(BaseFact):
     customer = DimensionForeignKey(CustomerDimension, on_delete=models.CASCADE)
     created_on = DimensionForeignKey(DateDimension, related_name="ordered_created_on", on_delete=models.CASCADE)
-    hour_created_on = DimensionForeignKey(HourDimension, alias='created_on', related_name="ordered_hour_created_on", on_delete=models.CASCADE)
+    hour_created_on = DimensionForeignKey(HourDimension, related_name="ordered_hour_created_on", on_delete=models.CASCADE)
     ordered_on = DimensionForeignKey(DateDimension, related_name="ordered_ordered_on", on_delete=models.CASCADE)
-    hour_ordered_on = DimensionForeignKey(HourDimension, alias='ordered_on', related_name="ordered_hour_ordered_on", on_delete=models.CASCADE)
+    hour_ordered_on = DimensionForeignKey(HourDimension, related_name="ordered_hour_ordered_on", on_delete=models.CASCADE)
 
     @classmethod
     def delete_when(cls, instance):
+        if not instance.ordered_on:
+            return False
         return instance.cancelled
 
     class ReportingMeta:
         business_model = TestOrder
         unique_identifier = 'id'
         fields = ('customer', 'created_on', 'hour_created_on', 'hour_ordered_on', 'ordered_on')
+        dimension_aliases = {
+            'hour_created_on': lambda instance: instance.created_on,
+            'hour_ordered_on': lambda instance: instance.ordered_on
+        }
         header_description = ['ID', 'Created Date', 'Created Time', 'Customer', 'Ordered Date', 'Ordered Time']
         row_description = lambda row: [
             row._unique_identifier,

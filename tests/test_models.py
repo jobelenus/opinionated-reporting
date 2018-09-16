@@ -12,14 +12,19 @@ TAX = 0.50
 class TestModels(TestCase):
 
     def setUp(self):
+        opr_models.HourDimension.objects.all().delete()
         with transaction.atomic():
             opr_models.HourDimension.init_dimension()
+
+        opr_models.DateDimension.objects.all().delete()
         with transaction.atomic():
             opr_models.DateDimension.init_dimension_by_range(datetime.date.today() - datetime.timedelta(days=3), datetime.date.today() + datetime.timedelta(days=3))
+
         with transaction.atomic():
             models.CustomerDimension.init_dimension()
         with transaction.atomic():
             models.ProductDimension.init_dimension()
+
         self.product = models.TestProduct.objects.create(**{
             'name': 'Widget',
             'price': PRICE
@@ -30,7 +35,8 @@ class TestModels(TestCase):
         })
         self.order = models.TestOrder.objects.create(**{
             'customer': self.customer,
-            'total': PRICE * QTY
+            'total': PRICE * QTY,
+            'ordered_on': datetime.datetime.now()
         })
         models.TestOrderItem.objects.create(**{
             'order': self.order,

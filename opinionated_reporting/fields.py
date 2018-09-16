@@ -16,8 +16,8 @@ class HandleFieldArgs(object):
         super().__init__(*args, **kwargs)
 
     def contribute_to_class(self, cls, name, **kwargs):
+        setattr(cls, name, DescriptionFieldWrapper(self))
         super().contribute_to_class(cls, name, **kwargs)
-        setattr(cls, self.name, DescriptionFieldWrapper(self))
 
 
 class BaseDescriptionField(HandleFieldArgs):
@@ -45,7 +45,7 @@ class DescriptionFieldWrapper(object):
         instance.__dict__[self.field.name] = value
 
     def __get__(self, instance, cls=None):
-        if instance is None:  # unsure what case this handles
+        if instance is None:  # Accesing descriptor on the class
             return None
         return DescriptionFieldOperations(instance, self.field.name, self.field)
 
@@ -75,8 +75,8 @@ class DescriptionFieldOperations(object):
         return val
 
 
-class DimensionForeignKey(HandleFieldArgs, models.ForeignKey):
+class DimensionForeignKey(models.ForeignKey):
     """
-    Has to check alias/computed during an update
+    Has to check for `opr_get_XXX` during an update
     """
     pass

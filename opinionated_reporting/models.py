@@ -169,42 +169,45 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
             field_name = field.name
             if field_name.startswith('_') or field.primary_key:  # ignore my internal fields
                 continue
+
+            val = None
             if isinstance(field, fields.HandleFieldArgs):
-                val = getattr(instance, field_name)
-                if hasattr(field, 'value_from_instance'):
-                    val = field.value_from_instance(instance)
-                if isinstance(field, fields.DimensionForeignKey):
-                    # Store dates and times from tz-aware datetimes in the setting defined local tz
-                    if issubclass(field.related_model, DateDimension):
-                        if isinstance(val, datetime.date) or isinstance(val, datetime.datetime):
-                            if not datetime_is_naive(val):
-                                val = val.astimezone(local_tz)
-                            if hasattr(val, 'date'):
-                                val = val.date()
-                            self.__dict__[field_name] = field.related_model._default_manager.get(date=val)
-                    elif issubclass(field.related_model, HourDimension):
-                        if isinstance(val, datetime.datetime):
-                            if not datetime_is_naive(val):
-                                val = val.astimezone(local_tz)
-                            val = datetime.time(hour=val.hour, minute=0)
-                        elif isinstance(val, datetime.time):
-                            val = datetime.time(hour=val.hour, minute=0)
-                        self.__dict__[field_name] = field.related_model._default_manager.get(time=val)
-                    else:
-                        # TODO: Update the "None" value to the corresponding None dimension record
-                        if val:
-                            dim_unique_id = getattr(val, field.related_model.ReportingMeta.unique_identifier)
-                            if dim_unique_id:
-                                try:
-                                    self.__dict__[field_name] = field.related_model._default_manager.get(_unique_identifier=dim_unique_id)
-                                except field.related_model.DoesNotExist:
-                                    self.__dict__[field_name] = None
-                            else:
+                val = getattr(instance, field_name).value_from_instance(instance)
+            elif isinstance(field, fields.DimensionForeignKey):
+                # do we need to compute the value
+                computed_lookup = self.ReportingMeta.dimension_aliases.get(field_name, None)
+                if computed_lookup and callable(computed_lookup):
+                    val = computed_lookup(instance)
+                # Store dates and times for reporting in the local tz from setting
+                if issubclass(field.related_model, DateDimension):
+                    if isinstance(val, datetime.date) or isinstance(val, datetime.datetime):
+                        if not datetime_is_naive(val):
+                            val = val.astimezone(local_tz)
+                        if hasattr(val, 'date'):
+                            val = val.date()
+                        self.__dict__[field_name] = field.related_model._default_manager.get(date=val)
+                elif issubclass(field.related_model, HourDimension):
+                    if isinstance(val, datetime.datetime):
+                        if not datetime_is_naive(val):
+                            val = val.astimezone(local_tz)
+                        val = datetime.time(hour=val.hour, minute=0)
+                    elif isinstance(val, datetime.time):
+                        val = datetime.time(hour=val.hour, minute=0)
+                    print("HOUR VAL", field_name, val)
+                    self.__dict__[field_name] = field.related_model._default_manager.get(time=val)
+                else:
+                    # TODO: Update the "None" value to the corresponding None dimension record
+                    if val:
+                        dim_unique_id = getattr(val, field.related_model.ReportingMeta.unique_identifier)
+                        if dim_unique_id:
+                            try:
+                                self.__dict__[field_name] = field.related_model._default_manager.get(_unique_identifier=dim_unique_id)
+                            except field.related_model.DoesNotExist:
                                 self.__dict__[field_name] = None
                         else:
                             self.__dict__[field_name] = None
-                else:
-                    self.__dict__[field_name] = val
+                    else:
+                        self.__dict__[field_name] = None
             else:
                 self.__dict__[field_name] = val
                 # TODO: clean up this deep nesting mess
