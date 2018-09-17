@@ -77,14 +77,14 @@ class OrderedProductFact(BaseFact):
 
     @classmethod
     def delete_when(cls, instance):
-        if not instance.ordered_on:
+        if not instance.order.ordered_on:
             return False
         return instance.order.cancelled
 
     class ReportingMeta:
         business_model = TestOrderItem
         unique_identifier = 'id'
-        fields = ('product', 'quantity', 'total', 'order_id', 'customer', 'created_on', 'hour_created_on', 'hour_ordered_on', 'ordered_on')
+        fields = ('quantity', 'total', 'order_id')
         dimension_aliases = {
             'created_on': lambda instance: instance.order.created_on,
             'ordered_on': lambda instance: instance.order.ordered_on,
@@ -126,7 +126,7 @@ class OrderedFact(BaseFact):
     class ReportingMeta:
         business_model = TestOrder
         unique_identifier = 'id'
-        fields = ('customer', 'created_on', 'hour_created_on', 'hour_ordered_on', 'ordered_on', 'total')
+        fields = ('total',)
         dimension_aliases = {
             'hour_created_on': lambda instance: instance.created_on,
             'hour_ordered_on': lambda instance: instance.ordered_on
