@@ -54,8 +54,9 @@ class TestModels(TestCase):
 
     def test_creation(self):
         fact = models.OrderedFact.get_reporting_fact(self.order)
-        self.assertGreater(models.OrderedFact.objects.all().count(), 0)
         self.assertEquals(fact._is_dirty, True)
+        fact.save()  # it returns unsaved when brand new
+        self.assertGreater(models.OrderedFact.objects.all().count(), 0)
 
     def test_dirty(self):
         models.OrderedFact.record_update(self.order)
