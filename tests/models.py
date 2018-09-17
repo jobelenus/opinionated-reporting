@@ -125,7 +125,7 @@ class OrderedFact(BaseFact):
     class ReportingMeta:
         business_model = TestOrder
         unique_identifier = 'id'
-        fields = ('customer', 'created_on', 'hour_created_on', 'hour_ordered_on', 'ordered_on')
+        fields = ('customer', 'created_on', 'hour_created_on', 'hour_ordered_on', 'ordered_on', 'total')
         dimension_aliases = {
             'hour_created_on': lambda instance: instance.created_on,
             'hour_ordered_on': lambda instance: instance.ordered_on

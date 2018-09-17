@@ -103,7 +103,7 @@ def assert_instance(fn):
     # actually, cls is a class or instance
     def wrapped(cls, instance):
         assert isinstance(instance, cls.ReportingMeta.business_model), "{} is not a {}".format(instance, cls.ReportingMeta.business_model)
-        fn(cls, instance)
+        return fn(cls, instance)
     return wrapped
 
 
@@ -141,7 +141,6 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
 
         if fact._is_dirty or force:
             fact._record_update(instance)
-            print("DETAILS: ", fact.__dict__)
             fact.save()
         return fact
 
