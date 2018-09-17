@@ -85,6 +85,7 @@ class TestModels(TestCase):
         self.assertEquals(fact2.total, self.product.price * fact2.quantity)
         self.assertEquals(getattr(fact2.product, 'name', None), self.product.name)
         self.assertEquals(getattr(fact2.customer, 'name', None), self.customer.name)
+        self.assertEquals(fact2.order_id, self.order.id)
 
     def test_delete(self):
         models.OrderedFact.record_update(self.order)

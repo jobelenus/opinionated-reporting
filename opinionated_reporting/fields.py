@@ -70,6 +70,9 @@ class DescriptionFieldOperations(object):
     def __str__(self):
         return str(self.value)
 
+    def __eq__(self, other):
+        return True if other == self.to_python() else False
+
     def __repr__(self):
         return '{}: {}'.format(self.__class__.__name__, self.value)
 
