@@ -16,8 +16,8 @@ class HandleFieldArgs(object):
         super().__init__(*args, **kwargs)
 
     def contribute_to_class(self, cls, name, **kwargs):
-        setattr(cls, name, DescriptionFieldWrapper(self))
         super().contribute_to_class(cls, name, **kwargs)
+        setattr(cls, name, DescriptionFieldWrapper(self))
 
 
 class BaseDescriptionField(HandleFieldArgs):
@@ -60,6 +60,15 @@ class DescriptionFieldOperations(object):
 
     def to_python(self):
         return self.value
+
+    def __int__(self):
+        return int(self.value)
+
+    def __float__(self):
+        return float(self.value)
+
+    def __str__(self):
+        return str(self.value)
 
     def __repr__(self):
         return '{}: {}'.format(self.__class__.__name__, self.value)

@@ -176,7 +176,7 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
 
             val = getattr(instance, field_name, None)
             if isinstance(field, fields.HandleFieldArgs):
-                val = getattr(instance, field_name).value_from_instance(instance)
+                val = getattr(self, field_name).value_from_instance(instance)
                 setattr(self, field_name, val)
             elif isinstance(field, fields.DimensionForeignKey):
                 # do we need to compute the value

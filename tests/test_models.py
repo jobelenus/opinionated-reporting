@@ -80,6 +80,7 @@ class TestModels(TestCase):
         fact = models.OrderedFact.get_reporting_fact(self.order)
         self.assertEquals(fact.total, new_total)
         self.assertEquals(fact.customer.name, self.customer.name)
+        models.OrderedProductFact.record_update(self.order_item)
         fact2 = models.OrderedProductFact.get_reporting_fact(self.order_item)
         self.assertEquals(fact2.total, self.product.price * fact2.quantity)
         self.assertEquals(getattr(fact2.product, 'name', None), self.product.name)
