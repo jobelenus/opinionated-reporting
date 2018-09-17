@@ -92,10 +92,13 @@ class FieldHandler(object):
         elif isinstance(self.model_field, models.DecimalField):
             kwargs.update({
                 'max_digits': self.model_field.max_digits,
-                'decimal_places': self.model_field.decimal_places
+                'decimal_places': self.model_field.decimal_places,
+                'default': 0
             })
         elif isinstance(self.model_field, models.CharField):
             kwargs.update({'max_length': self.model_field.max_length})
+        elif isinstance(self.model_field, models.IntegerField) or isinstance(self.model_field, models.PositiveIntegerField):
+            kwargs.update({'default': 0})
         return kwargs
 
 

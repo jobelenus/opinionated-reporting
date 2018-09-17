@@ -67,13 +67,13 @@ class ProductDimension(BaseDimension):
 
 
 class OrderedProductFact(BaseFact):
-    customer = DimensionForeignKey(CustomerDimension, on_delete=models.CASCADE)
-    product = DimensionForeignKey(ProductDimension, on_delete=models.CASCADE)
-    order_id = IntegerDescriptionField(computed=lambda instance: instance.order.id)
-    created_on = DimensionForeignKey(DateDimension, related_name="orderedproduct_created_on", on_delete=models.CASCADE)
-    hour_created_on = DimensionForeignKey(HourDimension, related_name="orderedproduct_hour_created_on", on_delete=models.CASCADE)
-    ordered_on = DimensionForeignKey(DateDimension, related_name="orderedproduct_ordered_on", on_delete=models.CASCADE)
-    hour_ordered_on = DimensionForeignKey(HourDimension, related_name="orderedproduct_hour_ordered_on", on_delete=models.CASCADE)
+    customer = DimensionForeignKey(CustomerDimension, null=True, on_delete=models.CASCADE)
+    product = DimensionForeignKey(ProductDimension, null=True, on_delete=models.CASCADE)
+    order_id = IntegerDescriptionField(computed=lambda instance: instance.order.id, default=0)
+    created_on = DimensionForeignKey(DateDimension, null=True, related_name="orderedproduct_created_on", on_delete=models.CASCADE)
+    hour_created_on = DimensionForeignKey(HourDimension, null=True, related_name="orderedproduct_hour_created_on", on_delete=models.CASCADE)
+    ordered_on = DimensionForeignKey(DateDimension, null=True, related_name="orderedproduct_ordered_on", on_delete=models.CASCADE)
+    hour_ordered_on = DimensionForeignKey(HourDimension, null=True, related_name="orderedproduct_hour_ordered_on", on_delete=models.CASCADE)
 
     @classmethod
     def delete_when(cls, instance):
@@ -110,11 +110,11 @@ class OrderedProductFact(BaseFact):
 
 
 class OrderedFact(BaseFact):
-    customer = DimensionForeignKey(CustomerDimension, on_delete=models.CASCADE)
-    created_on = DimensionForeignKey(DateDimension, related_name="ordered_created_on", on_delete=models.CASCADE)
-    hour_created_on = DimensionForeignKey(HourDimension, related_name="ordered_hour_created_on", on_delete=models.CASCADE)
-    ordered_on = DimensionForeignKey(DateDimension, related_name="ordered_ordered_on", on_delete=models.CASCADE)
-    hour_ordered_on = DimensionForeignKey(HourDimension, related_name="ordered_hour_ordered_on", on_delete=models.CASCADE)
+    customer = DimensionForeignKey(CustomerDimension, null=True, on_delete=models.CASCADE)
+    created_on = DimensionForeignKey(DateDimension, null=True, related_name="ordered_created_on", on_delete=models.CASCADE)
+    hour_created_on = DimensionForeignKey(HourDimension, null=True, related_name="ordered_hour_created_on", on_delete=models.CASCADE)
+    ordered_on = DimensionForeignKey(DateDimension, null=True, related_name="ordered_ordered_on", on_delete=models.CASCADE)
+    hour_ordered_on = DimensionForeignKey(HourDimension, null=True, related_name="ordered_hour_ordered_on", on_delete=models.CASCADE)
 
     @classmethod
     def delete_when(cls, instance):

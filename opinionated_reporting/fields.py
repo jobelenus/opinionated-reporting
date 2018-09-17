@@ -79,4 +79,11 @@ class DimensionForeignKey(models.ForeignKey):
     """
     Has to check for `opr_get_XXX` during an update
     """
-    pass
+    def __init__(self, *args, **kwargs):
+        """
+        All foreign keys need to be nullable in order to create an initial
+        dirty record that has only a unique_identifier
+        """
+        if not kwargs.get('null', False):
+            raise Exception('You must pass null=True for {}'.format(self))
+        super().__init__(*args, **kwargs)
