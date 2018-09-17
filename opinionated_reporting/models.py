@@ -131,17 +131,19 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
     def record_update(cls, instance, force=False):
         fact = cls.get_reporting_fact(instance)
         if fact._is_frozen:
-            return  # refuse to make any changes
+            return fact  # refuse to make any changes
 
         if hasattr(cls, 'delete_when') and callable(cls.delete_when):
             if cls.delete_when(instance):
                 if fact.id:  # may not be saved yet
                     fact.delete()
-                    return
+                    return None
 
         if fact._is_dirty or force:
             fact._record_update(instance)
+            print("DETAILS: ", fact.__dict__)
             fact.save()
+        return fact
 
     @classmethod
     @assert_instance
@@ -170,9 +172,10 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
             if field_name.startswith('_') or field.primary_key:  # ignore my internal fields
                 continue
 
-            val = None
+            val = getattr(instance, field_name, None)
             if isinstance(field, fields.HandleFieldArgs):
                 val = getattr(instance, field_name).value_from_instance(instance)
+                setattr(self, field_name, val)
             elif isinstance(field, fields.DimensionForeignKey):
                 # do we need to compute the value
                 computed_lookup = self.ReportingMeta.dimension_aliases.get(field_name, None)
@@ -185,7 +188,9 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
                             val = val.astimezone(local_tz)
                         if hasattr(val, 'date'):
                             val = val.date()
-                        self.__dict__[field_name] = field.related_model._default_manager.get(date=val)
+                        setattr(self, field_name, field.related_model._default_manager.get(date=val))
+                    else:
+                        raise Exception("{} for {} is not a date".format(val, field_name))
                 elif issubclass(field.related_model, HourDimension):
                     if isinstance(val, datetime.datetime):
                         if not datetime_is_naive(val):
@@ -193,24 +198,24 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
                         val = datetime.time(hour=val.hour, minute=0)
                     elif isinstance(val, datetime.time):
                         val = datetime.time(hour=val.hour, minute=0)
-                    print("HOUR VAL", field_name, val)
-                    self.__dict__[field_name] = field.related_model._default_manager.get(time=val)
+                    else:
+                        raise Exception("{} is not a datetime or time".format(val, field_name))
+                    setattr(self, field_name, field.related_model._default_manager.get(time=val))
                 else:
-                    # TODO: Update the "None" value to the corresponding None dimension record
                     if val:
                         dim_unique_id = getattr(val, field.related_model.ReportingMeta.unique_identifier)
                         if dim_unique_id:
                             try:
-                                self.__dict__[field_name] = field.related_model._default_manager.get(_unique_identifier=dim_unique_id)
-                            except field.related_model.DoesNotExist:
-                                self.__dict__[field_name] = None
+                                setattr(self, field_name, field.related_model._default_manager.get(_unique_identifier=dim_unique_id))
+                            except field.related_model.DoesNotExist:  # dimension doesnt exist, need to create it
+                                setattr(self, field_name, field.related_model.record_update(val))
                         else:
-                            self.__dict__[field_name] = None
+                            setattr(self, field_name, field.related_model._default_manager.get(_unique_identifier=0))
                     else:
-                        self.__dict__[field_name] = None
+                        setattr(self, field_name, field.related_model._default_manager.get(_unique_identifier=0))
             else:
-                self.__dict__[field_name] = val
-                # TODO: clean up this deep nesting mess
+                setattr(self, field_name, val)
+                # TODO: see if we can't clean up this deep nesting mess
 
     class Meta:
         abstract = True

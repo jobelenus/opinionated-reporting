@@ -1,6 +1,7 @@
 import datetime
 from django.test import TestCase
 from django.db import transaction
+from django.utils import timezone
 from opinionated_reporting import models as opr_models
 from . import models
 
@@ -36,8 +37,9 @@ class TestModels(TestCase):
         self.order = models.TestOrder.objects.create(**{
             'customer': self.customer,
             'total': PRICE * QTY,
-            'ordered_on': datetime.datetime.now()
+            'ordered_on': timezone.now()
         })
+        assert self.order.created_on
         models.TestOrderItem.objects.create(**{
             'order': self.order,
             'product': self.product,
