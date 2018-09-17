@@ -8,6 +8,7 @@ from . import models
 PRICE = 5.00
 QTY = 2
 TAX = 0.50
+TOTAL = (PRICE * QTY)  # omitting tax for test below
 
 
 class TestModels(TestCase):
@@ -40,11 +41,11 @@ class TestModels(TestCase):
             'ordered_on': timezone.now()
         })
         assert self.order.created_on
-        models.TestOrderItem.objects.create(**{
+        self.order_item = models.TestOrderItem.objects.create(**{
             'order': self.order,
             'product': self.product,
             'quantity': QTY,
-            'total': PRICE * QTY
+            'total': TOTAL,
         })
 
     def tearDown(self):
@@ -78,6 +79,11 @@ class TestModels(TestCase):
         models.OrderedFact.record_update(self.order)
         fact = models.OrderedFact.get_reporting_fact(self.order)
         self.assertEquals(fact.total, new_total)
+        self.assertEquals(fact.customer.name, self.customer.name)
+        fact2 = models.OrderedProductFact.get_reporting_fact(self.order_item)
+        self.assertEquals(fact2.total, self.product.price * fact2.quantity)
+        self.assertEquals(getattr(fact2.product, 'name', None), self.product.name)
+        self.assertEquals(getattr(fact2.customer, 'name', None), self.customer.name)
 
     def test_delete(self):
         models.OrderedFact.record_update(self.order)
