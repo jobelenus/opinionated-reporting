@@ -80,7 +80,7 @@ class TestModels(TestCase):
         self.assertEquals(fact.total, new_total)
 
     def test_delete(self):
-        models.OrderedFact.get_reporting_fact(self.order)
+        models.OrderedFact.record_update(self.order)
         self.assertGreater(models.OrderedFact.objects.all().count(), 0)
         self.order.cancelled = True
         self.order.save()
@@ -89,7 +89,7 @@ class TestModels(TestCase):
         self.assertEquals(models.OrderedFact.objects.all().count(), 0)
 
     def test_freeze(self):
-        models.OrderedFact.get_reporting_fact(self.order)
+        models.OrderedFact.record_update(self.order)
         self.assertGreater(models.OrderedFact.objects.all().count(), 0)
         models.OrderedFact.freeze(self.order)
         # reporting should not be able to be changed once frozen
