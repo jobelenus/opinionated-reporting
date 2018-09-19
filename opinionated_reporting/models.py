@@ -1,4 +1,5 @@
 import datetime
+from contextlib import contextmanager
 from django.db import models
 from django.apps import apps
 from django.conf import settings
@@ -114,6 +115,45 @@ def datetime_is_naive(d):
     return True if d.tzinfo is None or d.tzinfo.utcoffset(d) is None else False
 
 
+@contextmanager
+def get_date_from_datetime(val):
+    if isinstance(val, datetime.date) or isinstance(val, datetime.datetime):
+        if not datetime_is_naive(val):
+            val = val.astimezone(local_tz)
+        if hasattr(val, 'date'):
+            val = val.date()
+        yield val
+    else:
+        raise Exception("{} is not a date".format(val))
+
+
+@contextmanager
+def get_time_from(val):
+    if isinstance(val, datetime.datetime):
+        if not datetime_is_naive(val):
+            val = val.astimezone(local_tz)
+        yield datetime.time(hour=val.hour, minute=0)
+    elif isinstance(val, datetime.time):
+        yield datetime.time(hour=val.hour, minute=0)
+    else:
+        raise Exception("{} is not a datetime or time".format(val))
+
+
+@contextmanager
+def get_related_record_from(val, field):
+    if val:
+        dim_unique_id = getattr(val, field.related_model.ReportingMeta.unique_identifier)
+        if dim_unique_id:
+            try:
+                yield field.related_model._default_manager.get(_unique_identifier=dim_unique_id)
+            except field.related_model.DoesNotExist:  # dimension doesnt exist, need to create it
+                yield field.related_model.record_update(val)
+        else:
+            yield field.related_model._default_manager.get(_unique_identifier=0)
+    else:
+        yield field.related_model._default_manager.get(_unique_identifier=0)
+
+
 class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
     # note: there is an implicit `_unique_identifier` field here that comes from the metaclass
     _is_dirty = models.BooleanField(default=False)  # updated via signals from the originating model
@@ -175,49 +215,30 @@ class UpdatingModel(models.Model, metaclass=UpdatingModelMeta):  # NOQA
                 continue
 
             val = getattr(instance, field_name, None)
+
             if isinstance(field, fields.HandleFieldArgs):
                 val = getattr(self, field_name).value_from_instance(instance)
                 setattr(self, field_name, val)
+
             elif isinstance(field, fields.DimensionForeignKey):
+
                 # do we need to compute the value
                 computed_lookup = self.ReportingMeta.dimension_aliases.get(field_name, None)
                 if computed_lookup and callable(computed_lookup):
                     val = computed_lookup(instance)
                 # Store dates and times for reporting in the local tz from setting
                 if issubclass(field.related_model, DateDimension):
-                    if isinstance(val, datetime.date) or isinstance(val, datetime.datetime):
-                        if not datetime_is_naive(val):
-                            val = val.astimezone(local_tz)
-                        if hasattr(val, 'date'):
-                            val = val.date()
-                        setattr(self, field_name, field.related_model._default_manager.get(date=val))
-                    else:
-                        raise Exception("{} for {} is not a date".format(val, field_name))
+                    with get_date_from_datetime(val) as date:
+                        setattr(self, field_name, field.related_model._default_manager.get(date=date))
                 elif issubclass(field.related_model, HourDimension):
-                    if isinstance(val, datetime.datetime):
-                        if not datetime_is_naive(val):
-                            val = val.astimezone(local_tz)
-                        val = datetime.time(hour=val.hour, minute=0)
-                    elif isinstance(val, datetime.time):
-                        val = datetime.time(hour=val.hour, minute=0)
-                    else:
-                        raise Exception("{} is not a datetime or time".format(val, field_name))
-                    setattr(self, field_name, field.related_model._default_manager.get(time=val))
+                    with get_time_from(val) as time:
+                        setattr(self, field_name, field.related_model._default_manager.get(time=time))
                 else:
-                    if val:
-                        dim_unique_id = getattr(val, field.related_model.ReportingMeta.unique_identifier)
-                        if dim_unique_id:
-                            try:
-                                setattr(self, field_name, field.related_model._default_manager.get(_unique_identifier=dim_unique_id))
-                            except field.related_model.DoesNotExist:  # dimension doesnt exist, need to create it
-                                setattr(self, field_name, field.related_model.record_update(val))
-                        else:
-                            setattr(self, field_name, field.related_model._default_manager.get(_unique_identifier=0))
-                    else:
-                        setattr(self, field_name, field.related_model._default_manager.get(_unique_identifier=0))
+                    with get_related_record_from(val, field) as record:
+                        setattr(self, field_name, record)
+
             else:
                 setattr(self, field_name, val)
-                # TODO: see if we can't clean up this deep nesting mess
 
     class Meta:
         abstract = True
